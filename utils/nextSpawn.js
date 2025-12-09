@@ -1,29 +1,31 @@
-import { bosses } from "../data/bosses.js";
-
-export function getNextSpawn() {
+export function getNextSpawn(bosses) {
   const now = new Date();
-  let nextBoss = null;
 
-  for (const key in bosses) {
-    const boss = bosses[key];
-    const bossTime = boss.times
-      ? boss.times.map((t) => {
-          const [hours, minutes] = t.split(":").map(Number);
-          const nextTime = new Date();
-          nextTime.setHours(hours, minutes, 0, 0);
-          if (nextTime < now) nextTime.setDate(nextTime.getDate() + 1);
-          return nextTime;
+  // Flatten bosses to a list with next spawn time
+  const allBosses = Object.values(bosses).map((boss) => {
+    let nextTime = null;
+
+    if (boss.times) {
+      nextTime = boss.times
+        .map((t) => {
+          const [hour, minute] = t.split(":").map(Number);
+          const dt = new Date(now);
+          dt.setHours(hour, minute, 0, 0);
+          if (dt < now) dt.setDate(dt.getDate() + 1);
+          return dt;
         })
-      : [];
-
-    const soonestTime = bossTime.length
-      ? bossTime.sort((a, b) => a - b)[0]
-      : null;
-
-    if (!nextBoss || (soonestTime && soonestTime < nextBoss.nextTime)) {
-      nextBoss = { ...boss, nextTime: soonestTime };
+        .sort((a, b) => a - b)[0];
     }
-  }
 
-  return nextBoss;
+    return { ...boss, nextTime };
+  });
+
+  // Pick the closest next spawn
+  allBosses.sort((a, b) => {
+    if (!a.nextTime) return 1;
+    if (!b.nextTime) return -1;
+    return a.nextTime - b.nextTime;
+  });
+
+  return allBosses[0];
 }

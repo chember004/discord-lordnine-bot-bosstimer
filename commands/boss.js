@@ -1,24 +1,25 @@
-// commands/boss.js
 import { SlashCommandBuilder } from "discord.js";
+import { bosses } from "../data/bosses.js";
+import { buildEmbed } from "../utils/buildEmbed.js";
 import { getNextSpawn } from "../utils/nextSpawn.js";
 
 export const data = new SlashCommandBuilder()
   .setName("boss")
-  .setDescription("Shows the next boss spawn schedule")
-  .addStringOption((option) =>
-    option.setName("name").setDescription("The boss name").setRequired(true)
-  );
+  .setDescription("Shows the next world boss");
 
 export async function execute(interaction) {
-  const bossName = interaction.options.getString("name");
-  const result = getNextSpawn(bossName);
+  try {
+    const nextBoss = getNextSpawn(bosses);
+    const embed = buildEmbed(nextBoss);
 
-  if (!result) {
-    return interaction.reply({
-      content: `❌ Boss **${bossName}** not found.`,
-      ephemeral: true,
-    });
+    await interaction.reply({ embeds: [embed], ephemeral: true });
+  } catch (error) {
+    console.error(error);
+    if (!interaction.replied) {
+      await interaction.reply({
+        content: "Something went wrong while running that command.",
+        ephemeral: true,
+      });
+    }
   }
-
-  return interaction.reply({ embeds: [result], ephemeral: true });
 }

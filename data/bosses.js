@@ -132,7 +132,7 @@ export const bosses = {
     location: "Silvergrass Field",
   },
 
-  // Weekly bosses with schedules
+  // Weekly bosses
   saphirus: {
     name: "SAPHIRUS",
     schedule: ["Tuesday 11:30", "Sunday 17:00"],
