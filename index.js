@@ -1,37 +1,37 @@
 import "dotenv/config";
-import { Client, GatewayIntentBits, Collection } from "discord.js";
-import { buildEmbed } from "./utils/buildEmbed.js";
-import { getNextBosses } from "./utils/nextSpawn.js";
-import { data as bossData, execute as bossExecute } from "./commands/boss.js";
-import { execute as bossListExecute } from "./commands/bosslist.js";
+import fs from "fs";
+import path from "path";
+import { Client, Collection, GatewayIntentBits } from "discord.js";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-// Slash commands collection
 client.commands = new Collection();
-client.commands.set("boss", bossExecute);
-client.commands.set("bosslist", bossListExecute);
+const commandsPath = path.join(process.cwd(), "commands");
+const commandFiles = fs
+  .readdirSync(commandsPath)
+  .filter((f) => f.endsWith(".js"));
 
-// Ready event
+for (const file of commandFiles) {
+  const filePath = path.join(commandsPath, file);
+  const commandModule = await import(`file://${filePath}`);
+  if (commandModule.data && commandModule.execute) {
+    client.commands.set(commandModule.data.name, commandModule);
+  }
+}
+
 client.once("clientReady", () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
 
-// Interaction handling
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
-
-  const commandName = interaction.commandName;
-
+  const command = client.commands.get(interaction.commandName);
+  if (!command) return;
   try {
-    if (commandName === "boss") {
-      await bossExecute(interaction);
-    } else if (commandName === "bosslist") {
-      await bossListExecute(interaction);
-    }
+    await command.execute(interaction);
   } catch (error) {
     console.error(error);
-    if (!interaction.replied && !interaction.deferred) {
+    if (!interaction.replied) {
       await interaction.reply({
         content: "Something went wrong while running that command.",
         ephemeral: true,
@@ -40,5 +40,4 @@ client.on("interactionCreate", async (interaction) => {
   }
 });
 
-// Login using token from .env
 client.login(process.env.DISCORD_TOKEN);
