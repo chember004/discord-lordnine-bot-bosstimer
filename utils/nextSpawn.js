@@ -1,26 +1,27 @@
 import { bosses } from "../data/bosses.js";
 
-export function getNextBoss() {
+export function getNextSpawn() {
   const now = new Date();
   let nextBoss = null;
-  let nextTime = null;
 
   for (const key in bosses) {
     const boss = bosses[key];
-    // calculate next spawn time
-    for (const time of boss.times) {
-      const [hourStr, minStr] = time.split(":");
-      let bossTime = new Date(now);
-      bossTime.setHours(parseInt(hourStr), parseInt(minStr), 0, 0);
+    const bossTime = boss.times
+      ? boss.times.map((t) => {
+          const [hours, minutes] = t.split(":").map(Number);
+          const nextTime = new Date();
+          nextTime.setHours(hours, minutes, 0, 0);
+          if (nextTime < now) nextTime.setDate(nextTime.getDate() + 1);
+          return nextTime;
+        })
+      : [];
 
-      if (bossTime < now) {
-        bossTime.setDate(bossTime.getDate() + 1); // next day
-      }
+    const soonestTime = bossTime.length
+      ? bossTime.sort((a, b) => a - b)[0]
+      : null;
 
-      if (!nextTime || bossTime < nextTime) {
-        nextTime = bossTime;
-        nextBoss = { ...boss, nextTime: bossTime };
-      }
+    if (!nextBoss || (soonestTime && soonestTime < nextBoss.nextTime)) {
+      nextBoss = { ...boss, nextTime: soonestTime };
     }
   }
 

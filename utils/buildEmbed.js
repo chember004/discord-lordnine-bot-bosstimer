@@ -1,15 +1,11 @@
 export function buildEmbed(nextBoss) {
-  if (!nextBoss || !nextBoss.nextTime) {
+  if (!nextBoss) {
     return {
-      title: `🕒 Next Boss — ${nextBoss?.name ?? "Unknown"}`,
+      title: `🕒 Next Boss — Unknown`,
       color: 0xff0000,
       fields: [
         { name: "Respawn Time", value: "Unknown", inline: true },
-        {
-          name: "Location",
-          value: nextBoss?.location ?? "Unknown",
-          inline: true,
-        },
+        { name: "Location", value: "Unknown", inline: true },
       ],
       footer: { text: "LordNine Boss Timer" },
     };
@@ -24,6 +20,8 @@ export function buildEmbed(nextBoss) {
         value: nextBoss.nextTime.toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
+          hour12: true,
+          timeZone: process.env.TIME_ZONE,
         }),
         inline: true,
       },
