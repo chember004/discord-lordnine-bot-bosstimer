@@ -1,15 +1,12 @@
 import "dotenv/config";
-import { Client, GatewayIntentBits, Collection } from "discord.js";
 import fs from "fs";
 import path from "path";
+import { Client, Collection, GatewayIntentBits } from "discord.js";
 
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
-});
-
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.commands = new Collection();
 
-// Load all commands from commands folder
+// Load all command files
 const commandsPath = path.join(process.cwd(), "commands");
 const commandFiles = fs
   .readdirSync(commandsPath)
@@ -17,45 +14,49 @@ const commandFiles = fs
 
 for (const file of commandFiles) {
   const filePath = path.join(commandsPath, file);
-  const { data, execute } = await import(`file://${filePath}`);
-  if (!data || !execute) {
-    console.warn(`⚠️ Command ${file} is missing "data" or "execute". Skipped.`);
-    continue;
+  const command = await import(`file://${filePath}`);
+  if ("data" in command && "execute" in command) {
+    client.commands.set(command.data.name, command);
+  } else {
+    console.warn(
+      `[WARNING] Command ${file} is missing "data" or "execute". Skipped.`
+    );
   }
-  client.commands.set(data.name, { data, execute });
 }
 
-// Register commands globally
-client.once("clientReady", async () => {
+// Event: ready
+client.once("clientReady", () => {
   console.log(`Logged in as ${client.user.tag}`);
-
-  try {
-    const commands = client.commands.map((cmd) => cmd.data.toJSON());
-    await client.application.commands.set(commands);
-    console.log("Slash commands registered globally.");
-  } catch (err) {
-    console.error("Failed to register commands:", err);
-  }
 });
 
-// Handle slash commands
+// Event: interactionCreate
 client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
+  if (!interaction.isCommand()) return;
 
   const command = client.commands.get(interaction.commandName);
-  if (!command) return;
+  if (!command) {
+    console.error(`No command matching ${interaction.commandName} found.`);
+    return;
+  }
 
   try {
     await command.execute(interaction);
-  } catch (err) {
-    console.error(err);
-    if (!interaction.replied && !interaction.deferred) {
+  } catch (error) {
+    console.error(error);
+    if (!interaction.replied) {
       await interaction.reply({
-        content: "Something went wrong.",
+        content: "There was an error executing that command.",
         ephemeral: true,
       });
     }
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+// Login
+const TOKEN = process.env.DISCORD_TOKEN;
+if (!TOKEN) {
+  console.error("DISCORD_TOKEN not found in environment variables!");
+  process.exit(1);
+}
+
+client.login(TOKEN);
