@@ -1,54 +1,56 @@
+import { DateTime, Duration } from "luxon";
 import { bosses } from "../data/bosses.js";
-import { DateTime } from "luxon";
 
-export function getNextBosses(count = 1) {
-  const now = DateTime.now().setZone(process.env.TIMEZONE || "Asia/Manila");
+// Function to get next N bosses to spawn
+export function getNextNBosses(n, now = DateTime.now()) {
+  const allBosses = Object.values(bosses)
+    .filter((b) => b.times || b.schedule)
+    .map((b) => {
+      let nextTime;
 
-  const bossList = Object.values(bosses).map((b) => {
-    let nextTime = null;
+      if (b.times) {
+        // Daily bosses
+        const bossNextTimes = b.times.map((t) => {
+          const [hour, minute] = t.split(":").map(Number);
+          let dt = now.set({ hour, minute, second: 0, millisecond: 0 });
+          if (dt < now) dt = dt.plus({ days: 1 });
+          return dt;
+        });
+        nextTime = bossNextTimes.sort((a, b) => a - b)[0];
+      } else if (b.schedule) {
+        // Weekly bosses
+        const daysOfWeek = [
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+        ];
+        const bossNextTimes = b.schedule.map((s) => {
+          const [day, hm] = s.split(" ");
+          const [hour, minute] = hm.split(":").map(Number);
+          let dt = now.set({ hour, minute, second: 0, millisecond: 0 });
+          const targetDay = daysOfWeek.indexOf(day);
+          const diff = (targetDay - now.weekday + 7) % 7;
+          dt = dt.plus({ days: diff });
+          if (dt < now) dt = dt.plus({ days: 7 });
+          return dt;
+        });
+        nextTime = bossNextTimes.sort((a, b) => a - b)[0];
+      }
 
-    // Daily bosses
-    if (b.times) {
-      const nextTimes = b.times.map((t) => {
-        const [hour, minute] = t.split(":").map(Number);
-        let dt = now.set({ hour, minute, second: 0, millisecond: 0 });
-        if (dt <= now) dt = dt.plus({ minutes: b.interval });
-        return dt;
-      });
-      nextTime = nextTimes.sort((a, b) => a - b)[0];
-    }
+      return {
+        name: b.name,
+        location: b.location,
+        nextTime,
+      };
+    });
 
-    // Weekly bosses
-    if (b.schedule) {
-      const nextTimes = b.schedule.map((sch) => {
-        const [dayStr, timeStr] = sch.split(" ");
-        const [hour, minute] = timeStr.split(":").map(Number);
-        let dt = now
-          .set({ hour, minute, second: 0, millisecond: 0 })
-          .set({ weekday: getWeekday(dayStr) });
-        if (dt <= now) dt = dt.plus({ weeks: 1 });
-        return dt;
-      });
-      nextTime = nextTime
-        ? DateTime.min(nextTime, ...nextTimes)
-        : nextTimes.sort((a, b) => a - b)[0];
-    }
+  // Sort all bosses by nextTime ascending
+  allBosses.sort((a, b) => a.nextTime - b.nextTime);
 
-    return { ...b, nextTime };
-  });
-
-  return bossList.sort((a, b) => a.nextTime - b.nextTime).slice(0, count);
-}
-
-function getWeekday(day) {
-  const map = {
-    Monday: 1,
-    Tuesday: 2,
-    Wednesday: 3,
-    Thursday: 4,
-    Friday: 5,
-    Saturday: 6,
-    Sunday: 7,
-  };
-  return map[day] || 1;
+  // Return first N bosses
+  return allBosses.slice(0, n);
 }
