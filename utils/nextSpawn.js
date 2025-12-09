@@ -1,5 +1,5 @@
 import { DateTime, Duration } from "luxon";
-import { bosses } from "./bosses.js"; // corrected path
+import { bosses } from "../data/bosses.js"; // corrected path
 
 const TIMEZONE = process.env.TIMEZONE || "Asia/Manila";
 
