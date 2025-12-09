@@ -1,65 +1,48 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
-import { getNextNBosses } from "../utils/nextSpawn.js";
-import { DateTime, Interval } from "luxon";
+import {
+  getNextNBosses,
+  formatDateTime,
+  formatCountdown,
+} from "../utils/nextSpawn.js";
 
 export const data = new SlashCommandBuilder()
   .setName("bosslist")
-  .setDescription("Shows the next upcoming bosses")
+  .setDescription("Shows upcoming bosses.")
   .addIntegerOption((option) =>
     option
       .setName("count")
-      .setDescription("Number of bosses to display")
+      .setDescription("Number of upcoming bosses to show")
       .setRequired(false)
   );
 
 export async function execute(interaction) {
   try {
-    const count = interaction.options.getInteger("count") || 3;
-    const bosses = getNextNBosses(count);
+    const count = interaction.options.getInteger("count") || 5;
+    const upcomingBosses = getNextNBosses(count);
 
-    if (!bosses.length) {
-      return interaction.reply({
-        content: "No boss data available.",
-        ephemeral: true,
-      });
+    if (!upcomingBosses || upcomingBosses.length === 0) {
+      await interaction.reply("No upcoming bosses found.");
+      return;
     }
 
-    const now = DateTime.now().setZone("Asia/Manila");
+    const fields = upcomingBosses.map((boss) => ({
+      name: boss.name,
+      value: `Location: ${
+        boss.location || "Unknown"
+      }\nNext Spawn: ${formatDateTime(
+        boss.nextTime
+      )}\nCountdown: ${formatCountdown(boss.nextTime)}`,
+    }));
 
-    const fields = bosses.map((boss) => {
-      const countdown = Interval.fromDateTimes(now, boss.nextTime).toDuration([
-        "hours",
-        "minutes",
-        "seconds",
-      ]);
-      const countdownStr = `${Math.floor(countdown.hours)}h ${Math.floor(
-        countdown.minutes
-      )}m ${Math.floor(countdown.seconds)}s`;
+    const embed = {
+      title: `🕒 Upcoming Bosses`,
+      color: 0x00ff00,
+      fields,
+    };
 
-      return {
-        name: boss.name,
-        value: `📍 Location: ${
-          boss.location
-        }\n⏰ Spawn: ${boss.nextTime.toFormat(
-          "yyyy-LL-dd hh:mm a"
-        )}\n⏳ Countdown: ${countdownStr}`,
-      };
-    });
-
-    await interaction.reply({
-      embeds: [
-        {
-          title: `🕒 Next ${bosses.length} Bosses`,
-          color: 0x00ff00,
-          fields,
-        },
-      ],
-    });
+    await interaction.reply({ embeds: [embed] });
   } catch (err) {
     console.error(err);
-    await interaction.reply({
-      content: "Something went wrong while running that command.",
-      ephemeral: true,
-    });
+    await interaction.reply("Something went wrong while running that command.");
   }
 }

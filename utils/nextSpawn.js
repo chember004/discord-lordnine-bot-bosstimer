@@ -1,115 +1,88 @@
 import { DateTime, Duration } from "luxon";
-import { bosses } from "../spawn/bosses.js";
+import { bosses } from "./bosses.js"; // corrected path
 
-export function getNextBoss() {
-  const now = DateTime.now().setZone("Asia/Manila");
-  let nextBoss = null;
+const TIMEZONE = process.env.TIMEZONE || "Asia/Manila";
 
-  Object.values(bosses).forEach((boss) => {
-    if (!boss.times && !boss.schedule) return; // skip invalid
-
-    let nextTime;
-
-    // Daily bosses
-    if (boss.times) {
-      boss.times.forEach((t) => {
-        const [hour, minute] = t.split(":").map(Number);
-        let candidate = DateTime.fromObject(
-          { hour, minute },
-          { zone: "Asia/Manila" }
-        );
-
-        // Add interval until in future
-        const intervalMinutes = parseInt(boss.interval.replace("h", "")) * 60;
-        while (candidate < now)
-          candidate = candidate.plus({ minutes: intervalMinutes });
-
-        if (!nextTime || candidate < nextTime) nextTime = candidate;
-      });
-    }
-
-    // Weekly bosses
-    if (boss.schedule) {
-      boss.schedule.forEach((s) => {
-        const [dayStr, timeStr] = s.split(" ");
-        const [hour, minute] = timeStr.split(":").map(Number);
-        let candidate = DateTime.fromObject(
-          { hour, minute },
-          { zone: "Asia/Manila" }
-        ).set({ weekday: weekdayFromString(dayStr) });
-
-        if (candidate < now) candidate = candidate.plus({ weeks: 1 });
-
-        if (!nextTime || candidate < nextTime) nextTime = candidate;
-      });
-    }
-
-    if (!nextBoss || nextTime < nextBoss.nextTime) {
-      nextBoss = { ...boss, nextTime };
-    }
-  });
-
-  return nextBoss;
+/**
+ * Convert interval string to minutes
+ * e.g., "62h" => 62 * 60
+ */
+function intervalToMinutes(interval) {
+  if (!interval) return null;
+  const match = interval.match(/(\d+)(h|m)/);
+  if (!match) return null;
+  const [, value, unit] = match;
+  return unit === "h" ? parseInt(value) * 60 : parseInt(value);
 }
 
-export function getNextNBosses(n = 3) {
-  const now = DateTime.now().setZone("Asia/Manila");
-  const upcoming = [];
+/**
+ * Get next spawn time for a single boss
+ */
+export function getNextBossTime(boss) {
+  const now = DateTime.now().setZone(TIMEZONE);
 
-  Object.values(bosses).forEach((boss) => {
-    if (!boss.times && !boss.schedule) return;
+  // For daily bosses with times
+  if (boss.times && boss.times.length > 0) {
+    const times = boss.times.map((t) => {
+      const [hour, minute] = t.split(":").map(Number);
+      let dt = now.set({ hour, minute, second: 0, millisecond: 0 });
+      if (dt < now) dt = dt.plus({ days: 1 });
+      return dt;
+    });
+    times.sort((a, b) => a - b);
+    return times[0];
+  }
 
-    let nextTime;
-
-    if (boss.times) {
-      boss.times.forEach((t) => {
-        const [hour, minute] = t.split(":").map(Number);
-        let candidate = DateTime.fromObject(
-          { hour, minute },
-          { zone: "Asia/Manila" }
-        );
-
-        const intervalMinutes = parseInt(boss.interval.replace("h", "")) * 60;
-        while (candidate < now)
-          candidate = candidate.plus({ minutes: intervalMinutes });
-
-        if (!nextTime || candidate < nextTime) nextTime = candidate;
-      });
+  // For bosses with interval
+  if (boss.interval && boss.lastTime) {
+    const last = DateTime.fromISO(boss.lastTime, { zone: TIMEZONE });
+    const minutes = intervalToMinutes(boss.interval);
+    if (!minutes) return null;
+    let next = last.plus({ minutes });
+    while (next < now) {
+      next = next.plus({ minutes });
     }
+    return next;
+  }
 
-    if (boss.schedule) {
-      boss.schedule.forEach((s) => {
-        const [dayStr, timeStr] = s.split(" ");
-        const [hour, minute] = timeStr.split(":").map(Number);
-        let candidate = DateTime.fromObject(
-          { hour, minute },
-          { zone: "Asia/Manila" }
-        ).set({ weekday: weekdayFromString(dayStr) });
-
-        if (candidate < now) candidate = candidate.plus({ weeks: 1 });
-        if (!nextTime || candidate < nextTime) nextTime = candidate;
-      });
-    }
-
-    upcoming.push({ ...boss, nextTime });
-  });
-
-  // Sort ascending
-  upcoming.sort((a, b) => a.nextTime - b.nextTime);
-
-  return upcoming.slice(0, n);
+  return null;
 }
 
-// Helper: map day name to Luxon weekday number
-function weekdayFromString(day) {
-  const map = {
-    Monday: 1,
-    Tuesday: 2,
-    Wednesday: 3,
-    Thursday: 4,
-    Friday: 5,
-    Saturday: 6,
-    Sunday: 7,
-  };
-  return map[day];
+/**
+ * Get next N upcoming bosses, sorted by next spawn
+ */
+export function getNextNBosses(n = 1) {
+  const bossArray = Object.values(bosses).filter(
+    (b) => b.times || (b.interval && b.lastTime)
+  );
+
+  const bossesWithNext = bossArray.map((b) => {
+    const nextTime = getNextBossTime(b);
+    return { ...b, nextTime };
+  });
+
+  bossesWithNext.sort((a, b) => a.nextTime - b.nextTime);
+
+  return bossesWithNext.slice(0, n);
+}
+
+/**
+ * Format DateTime to display with AM/PM
+ */
+export function formatDateTime(dt) {
+  return dt.toFormat("yyyy-MM-dd hh:mm a");
+}
+
+/**
+ * Format countdown as HH:MM:SS or D HH:MM:SS
+ */
+export function formatCountdown(dt) {
+  const now = DateTime.now().setZone(TIMEZONE);
+  let diff = dt.diff(now, ["days", "hours", "minutes", "seconds"]).toObject();
+  let str = "";
+  if (diff.days >= 1) str += `${Math.floor(diff.days)}d `;
+  str += `${String(Math.floor(diff.hours)).padStart(2, "0")}:`;
+  str += `${String(Math.floor(diff.minutes)).padStart(2, "0")}:`;
+  str += `${String(Math.floor(diff.seconds)).padStart(2, "0")}`;
+  return str;
 }
