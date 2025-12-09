@@ -1,38 +1,28 @@
+// commands/boss.js
 import { SlashCommandBuilder } from "discord.js";
-import { bosses } from "../data/bosses.js";
+import { getNextBoss } from "../utils/nextSpawn.js";
 import { buildEmbed } from "../utils/buildEmbed.js";
-import { getNextNBosses } from "../utils/nextSpawn.js";
 
 export const data = new SlashCommandBuilder()
   .setName("boss")
-  .setDescription("Shows the next boss(es) to spawn")
-  .addIntegerOption((option) =>
-    option
-      .setName("count")
-      .setDescription("Number of upcoming bosses to display")
-      .setRequired(false)
-  );
+  .setDescription("Show the next upcoming world boss");
 
 export async function execute(interaction) {
   try {
-    const count = interaction.options.getInteger("count");
-    const nextBosses = getNextNBosses(count || 1);
+    const nextBoss = getNextBoss();
 
-    if ((count || 1) === 1) {
+    if (!nextBoss) {
       await interaction.reply({
-        embeds: [buildEmbed(nextBosses[0])],
+        content: "No upcoming boss found.",
         ephemeral: true,
       });
-    } else {
-      for (const boss of nextBosses) {
-        await interaction.followUp({
-          embeds: [buildEmbed(boss)],
-          ephemeral: true,
-        });
-      }
+      return;
     }
-  } catch (err) {
-    console.error(err);
+
+    const embed = buildEmbed(nextBoss);
+    await interaction.reply({ embeds: [embed] });
+  } catch (error) {
+    console.error(error);
     await interaction.reply({
       content: "Something went wrong while running that command.",
       ephemeral: true,

@@ -1,65 +1,34 @@
+// index.js
 import "dotenv/config";
+import { Client, Collection, GatewayIntentBits } from "discord.js";
 import fs from "fs";
 import path from "path";
-import { Client, Collection, GatewayIntentBits } from "discord.js";
-import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Create client
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
-});
-
-// Load commands
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.commands = new Collection();
-const commandsPath = path.join(__dirname, "commands");
+
+// Load commands dynamically
+const commandsPath = path.join("./commands");
 const commandFiles = fs
   .readdirSync(commandsPath)
-  .filter((f) => f.endsWith(".js"));
+  .filter((file) => file.endsWith(".js"));
 
 for (const file of commandFiles) {
   const filePath = path.join(commandsPath, file);
-  const command = await import(filePath);
-  if ("data" in command && "execute" in command) {
-    client.commands.set(command.data.name, command);
+  const { data, execute } = await import(filePath);
+  if (data && execute) {
+    client.commands.set(data.name, { data, execute });
   } else {
-    console.warn(
-      `[WARNING] The command at ${file} is missing "data" or "execute" property.`
-    );
+    console.warn(`⚠️ Command ${file} is missing "data" or "execute". Skipped.`);
   }
 }
 
-// Register global commands
-async function registerCommands() {
-  try {
-    const rest = new (await import("@discordjs/rest")).REST({
-      version: "10",
-    }).setToken(process.env.DISCORD_TOKEN);
-    const { Routes } = await import("discord.js");
-
-    const commands = [];
-    for (const command of client.commands.values()) {
-      commands.push(command.data.toJSON());
-    }
-
-    await rest.put(Routes.applicationCommands(client.user.id), {
-      body: commands,
-    });
-    console.log("✅ Global commands registered.");
-  } catch (err) {
-    console.error("Failed to register commands:", err);
-  }
-}
-
-// Event: Bot ready
-client.once("clientReady", async () => {
+// Event: ready
+client.once("clientReady", () => {
   console.log(`Logged in as ${client.user.tag}`);
-  await registerCommands();
 });
 
-// Event: Interaction create
+// Event: interaction
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -68,16 +37,16 @@ client.on("interactionCreate", async (interaction) => {
 
   try {
     await command.execute(interaction);
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
     if (!interaction.replied) {
       await interaction.reply({
-        content: "Something went wrong while executing this command.",
+        content: "There was an error executing this command.",
         ephemeral: true,
       });
     }
   }
 });
 
-// Login
+// Login with token
 client.login(process.env.DISCORD_TOKEN);
