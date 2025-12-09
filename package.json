@@ -1,0 +1,13 @@
+{
+  "name": "lordnine-bot",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.11.0",
+    "moment-timezone": "^0.5.40"
+  }
+}
