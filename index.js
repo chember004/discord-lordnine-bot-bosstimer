@@ -1,52 +1,44 @@
-// index.js
 import "dotenv/config";
-import { Client, Collection, GatewayIntentBits } from "discord.js";
-import fs from "fs";
-import path from "path";
+import { Client, GatewayIntentBits, Collection } from "discord.js";
+import { buildEmbed } from "./utils/buildEmbed.js";
+import { getNextBosses } from "./utils/nextSpawn.js";
+import { data as bossData, execute as bossExecute } from "./commands/boss.js";
+import { execute as bossListExecute } from "./commands/bosslist.js";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+// Slash commands collection
 client.commands = new Collection();
+client.commands.set("boss", bossExecute);
+client.commands.set("bosslist", bossListExecute);
 
-// Load commands dynamically
-const commandsPath = path.join("./commands");
-const commandFiles = fs
-  .readdirSync(commandsPath)
-  .filter((file) => file.endsWith(".js"));
-
-for (const file of commandFiles) {
-  const filePath = path.join(commandsPath, file);
-  const { data, execute } = await import(filePath);
-  if (data && execute) {
-    client.commands.set(data.name, { data, execute });
-  } else {
-    console.warn(`⚠️ Command ${file} is missing "data" or "execute". Skipped.`);
-  }
-}
-
-// Event: ready
+// Ready event
 client.once("clientReady", () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
 
-// Event: interaction
+// Interaction handling
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
-  const command = client.commands.get(interaction.commandName);
-  if (!command) return;
+  const commandName = interaction.commandName;
 
   try {
-    await command.execute(interaction);
-  } catch (err) {
-    console.error(err);
-    if (!interaction.replied) {
+    if (commandName === "boss") {
+      await bossExecute(interaction);
+    } else if (commandName === "bosslist") {
+      await bossListExecute(interaction);
+    }
+  } catch (error) {
+    console.error(error);
+    if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({
-        content: "There was an error executing this command.",
+        content: "Something went wrong while running that command.",
         ephemeral: true,
       });
     }
   }
 });
 
-// Login with token
+// Login using token from .env
 client.login(process.env.DISCORD_TOKEN);
