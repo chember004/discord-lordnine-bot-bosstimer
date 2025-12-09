@@ -1,39 +1,57 @@
 import "dotenv/config";
+import { Client, GatewayIntentBits, Collection } from "discord.js";
 import fs from "fs";
 import path from "path";
-import { Client, Collection, GatewayIntentBits } from "discord.js";
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds],
+});
 
 client.commands = new Collection();
+
+// Load all commands from commands folder
 const commandsPath = path.join(process.cwd(), "commands");
 const commandFiles = fs
   .readdirSync(commandsPath)
-  .filter((f) => f.endsWith(".js"));
+  .filter((file) => file.endsWith(".js"));
 
 for (const file of commandFiles) {
   const filePath = path.join(commandsPath, file);
-  const commandModule = await import(`file://${filePath}`);
-  if (commandModule.data && commandModule.execute) {
-    client.commands.set(commandModule.data.name, commandModule);
+  const { data, execute } = await import(`file://${filePath}`);
+  if (!data || !execute) {
+    console.warn(`⚠️ Command ${file} is missing "data" or "execute". Skipped.`);
+    continue;
   }
+  client.commands.set(data.name, { data, execute });
 }
 
-client.once("clientReady", () => {
+// Register commands globally
+client.once("clientReady", async () => {
   console.log(`Logged in as ${client.user.tag}`);
+
+  try {
+    const commands = client.commands.map((cmd) => cmd.data.toJSON());
+    await client.application.commands.set(commands);
+    console.log("Slash commands registered globally.");
+  } catch (err) {
+    console.error("Failed to register commands:", err);
+  }
 });
 
+// Handle slash commands
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
+
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
+
   try {
     await command.execute(interaction);
-  } catch (error) {
-    console.error(error);
-    if (!interaction.replied) {
+  } catch (err) {
+    console.error(err);
+    if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({
-        content: "Something went wrong while running that command.",
+        content: "Something went wrong.",
         ephemeral: true,
       });
     }
