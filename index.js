@@ -1,45 +1,27 @@
 import { Client, GatewayIntentBits, Collection } from "discord.js";
-import * as bossCommand from "./commands/boss.js";
-import { config } from "./config.js";
+import { config } from "dotenv";
+import { data as bossData, execute as bossExecute } from "./commands/boss.js";
+
+config(); // load .env
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-
-// Command collection
 client.commands = new Collection();
-client.commands.set(bossCommand.data.name, bossCommand);
+client.commands.set(bossData.name, { data: bossData, execute: bossExecute });
 
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
 
-  try {
-    // Clear old guild commands first
-    await client.application.commands.set([], config.guildId);
-    console.log("Old commands cleared.");
+  // Register slash commands
+  await client.application.commands.set([bossData], process.env.GUILD_ID);
 
-    // Register latest commands for your guild
-    await client.application.commands.set([bossCommand.data], config.guildId);
-    console.log("Slash commands registered successfully.");
-  } catch (err) {
-    console.error("Error registering commands:", err);
-  }
+  console.log("Slash commands registered.");
 });
 
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
   const command = client.commands.get(interaction.commandName);
-  if (!command) return;
-
-  try {
-    await command.execute(interaction);
-  } catch (err) {
-    console.error("Error executing command:", err);
-    await interaction.reply({
-      content: "There was an error executing this command.",
-      ephemeral: true,
-    });
-  }
+  if (command) await command.execute(interaction);
 });
 
-// Login to Discord
-client.login(config.token);
+client.login(process.env.DISCORD_TOKEN);
