@@ -1,22 +1,22 @@
 import "dotenv/config";
-import { Client, GatewayIntentBits, Collection } from "discord.js";
+import { Client, Collection, GatewayIntentBits } from "discord.js";
 import fs from "fs";
 import path from "path";
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds],
+});
 
-// Commands collection
 client.commands = new Collection();
 
-// Load commands dynamically
+// Load command files
 const commandsPath = path.join(process.cwd(), "commands");
 const commandFiles = fs
   .readdirSync(commandsPath)
   .filter((file) => file.endsWith(".js"));
 
 for (const file of commandFiles) {
-  const filePath = path.join(commandsPath, file);
-  const command = await import(filePath);
+  const command = await import(`./commands/${file}`);
   if (command.data && command.execute) {
     client.commands.set(command.data.name, command);
   } else {
@@ -24,12 +24,12 @@ for (const file of commandFiles) {
   }
 }
 
-// Bot ready
+// Event: ready
 client.once("clientReady", () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
 
-// Interaction handler
+// Event: interactionCreate
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -40,7 +40,7 @@ client.on("interactionCreate", async (interaction) => {
     await command.execute(interaction);
   } catch (error) {
     console.error(error);
-    if (!interaction.replied) {
+    if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({
         content: "Something went wrong while running that command.",
         ephemeral: true,

@@ -1,25 +1,21 @@
-import { SlashCommandBuilder } from "discord.js";
-import { bosses } from "../data/bosses.js";
+import { SlashCommandBuilder } from "@discordjs/builders";
 import { buildEmbed } from "../utils/buildEmbed.js";
-import { getNextSpawn } from "../utils/nextSpawn.js";
+import { getNextBoss } from "../utils/nextSpawn.js";
 
+// Command: /boss
 export const data = new SlashCommandBuilder()
   .setName("boss")
-  .setDescription("Shows the next world boss");
+  .setDescription("Shows the next upcoming boss");
 
 export async function execute(interaction) {
   try {
-    const nextBoss = getNextSpawn(bosses);
-    const embed = buildEmbed(nextBoss);
-
-    await interaction.reply({ embeds: [embed], ephemeral: true });
-  } catch (error) {
-    console.error(error);
-    if (!interaction.replied) {
-      await interaction.reply({
-        content: "Something went wrong while running that command.",
-        ephemeral: true,
-      });
-    }
+    const nextBoss = getNextBoss(); // Automatically finds the next upcoming boss
+    await interaction.reply({ embeds: [buildEmbed(nextBoss)] });
+  } catch (err) {
+    console.error(err);
+    await interaction.reply({
+      content: "Something went wrong while running that command.",
+      ephemeral: true,
+    });
   }
 }

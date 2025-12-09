@@ -1,31 +1,48 @@
-export function getNextSpawn(bosses) {
-  const now = new Date();
+import { bosses } from "../data/bosses.js";
+import moment from "moment-timezone";
 
-  // Flatten bosses to a list with next spawn time
-  const allBosses = Object.values(bosses).map((boss) => {
-    let nextTime = null;
+const TIMEZONE = process.env.TIMEZONE || "Asia/Manila";
 
-    if (boss.times) {
-      nextTime = boss.times
-        .map((t) => {
-          const [hour, minute] = t.split(":").map(Number);
-          const dt = new Date(now);
-          dt.setHours(hour, minute, 0, 0);
-          if (dt < now) dt.setDate(dt.getDate() + 1);
-          return dt;
-        })
-        .sort((a, b) => a - b)[0];
-    }
+function parseTime(timeStr) {
+  return moment.tz(timeStr, "HH:mm", TIMEZONE);
+}
 
-    return { ...boss, nextTime };
-  });
+export function getNextBoss() {
+  let next = null;
+  const now = moment().tz(TIMEZONE);
 
-  // Pick the closest next spawn
-  allBosses.sort((a, b) => {
-    if (!a.nextTime) return 1;
-    if (!b.nextTime) return -1;
-    return a.nextTime - b.nextTime;
-  });
+  for (const key in bosses) {
+    const boss = bosses[key];
+    const times = boss.times || [];
 
-  return allBosses[0];
+    times.forEach((t) => {
+      const bossTime = parseTime(t);
+      if (!next || bossTime.isBefore(next.time)) {
+        next = { ...boss, nextTime: bossTime.toDate(), time: bossTime };
+      }
+    });
+  }
+
+  return next;
+}
+
+export function getNextNBosses(count) {
+  const now = moment().tz(TIMEZONE);
+  const list = [];
+
+  for (const key in bosses) {
+    const boss = bosses[key];
+    const times = boss.times || [];
+    times.forEach((t) => {
+      const bossTime = parseTime(t);
+      if (bossTime.isAfter(now)) {
+        list.push({ ...boss, nextTime: bossTime.toDate() });
+      }
+    });
+  }
+
+  // Sort ascending by next spawn
+  list.sort((a, b) => a.nextTime - b.nextTime);
+
+  return list.slice(0, count);
 }
