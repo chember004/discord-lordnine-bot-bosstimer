@@ -21,13 +21,14 @@ export function buildEmbed(nextBoss) {
     fields: [
       {
         name: "Respawn Time",
-        value: nextBoss.nextTime.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        value: nextBoss.nextTime.toFormat("yyyy-LL-dd HH:mm"),
         inline: true,
       },
-      { name: "Location", value: nextBoss.location, inline: true },
+      {
+        name: "Location",
+        value: nextBoss.location,
+        inline: true,
+      },
     ],
     footer: { text: "LordNine Boss Timer" },
   };
