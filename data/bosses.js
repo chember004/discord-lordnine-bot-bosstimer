@@ -1,5 +1,4 @@
 export const bosses = {
-  // Daily bosses
   secreta: {
     name: "SECRETA",
     times: ["07:15"],
@@ -132,52 +131,4 @@ export const bosses = {
     interval: 3720,
     location: "Silvergrass Field",
   },
-
-  // Weekly bosses
-  saphirus: {
-    name: "SAPHIRUS",
-    schedule: ["Tuesday 11:30", "Sunday 17:00"],
-    location: "Crescent Lake",
-  },
-  neutro: {
-    name: "NEUTRO",
-    schedule: ["Tuesday 19:00", "Thursday 11:30"],
-    location: "Desert of the Screaming",
-  },
-  thymele: {
-    name: "THYMELE",
-    schedule: ["Wednesday 11:30", "Monday 19:00"],
-    location: "Twilight Hill",
-  },
-  auraq: {
-    name: "AURAQ",
-    schedule: ["Wednesday 21:00", "Sunday 21:00"],
-    location: "Garbana 2F",
-  },
-  clemantis: {
-    name: "CLEMANTIS",
-    schedule: ["Thursday 19:00", "Monday 11:30"],
-    location: "Corrupted Basin",
-  },
-  roderick: {
-    name: "RODERICK",
-    schedule: ["Friday 19:00"],
-    location: "Garbana 1F",
-  },
-  milavy: {
-    name: "MILAVY",
-    schedule: ["Saturday 15:00"],
-    location: "Tower of Tyriosa 3F",
-  },
-  ringor: {
-    name: "RINGOR",
-    schedule: ["Saturday 17:00"],
-    location: "Battlefield of Templar",
-  },
-  chaiflock: {
-    name: "CHAIFLOCK",
-    schedule: ["Saturday 22:00"],
-    location: "Silvergrass Field",
-  },
-  benji: { name: "BENJI", schedule: ["Sunday 21:00"], location: "Barbas" },
 };
