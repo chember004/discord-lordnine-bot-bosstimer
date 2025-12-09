@@ -1,25 +1,24 @@
-import { buildEmbed } from "../utils/buildEmbed.js";
+// commands/boss.js
+import { SlashCommandBuilder } from "discord.js";
 import { getNextSpawn } from "../utils/nextSpawn.js";
-import { bosses } from "../data/bosses.js";
 
-export default {
-  data: {
-    name: "boss",
-    description: "Shows the next boss spawn",
-  },
-  async execute(interaction) {
-    try {
-      const nextBoss = getNextSpawn(bosses); // your function
-      await interaction.deferReply(); // defer first
-      await interaction.editReply({ embeds: [buildEmbed(nextBoss)] }); // then edit
-    } catch (err) {
-      console.error(err);
-      if (!interaction.replied) {
-        await interaction.reply({
-          content: "Error fetching boss info.",
-          ephemeral: true,
-        });
-      }
-    }
-  },
-};
+export const data = new SlashCommandBuilder()
+  .setName("boss")
+  .setDescription("Shows the next boss spawn schedule")
+  .addStringOption((option) =>
+    option.setName("name").setDescription("The boss name").setRequired(true)
+  );
+
+export async function execute(interaction) {
+  const bossName = interaction.options.getString("name");
+  const result = getNextSpawn(bossName);
+
+  if (!result) {
+    return interaction.reply({
+      content: `❌ Boss **${bossName}** not found.`,
+      ephemeral: true,
+    });
+  }
+
+  return interaction.reply({ embeds: [result], ephemeral: true });
+}
